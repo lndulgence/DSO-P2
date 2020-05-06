@@ -56,6 +56,11 @@ int mkFS(long deviceSize)
 	for(int i = 0; i < MAX_NUMBER_FILES; i++) {
 		strcpy(iNodeNames[i], "");
 		fileState[i] = CLOSED;
+		superblock.block_allocation_map[i]=0;
+		superblock.block_allocation_map[i*2]=0;
+		superblock.block_allocation_map[i*3]=0;
+		superblock.block_allocation_map[i*4]=0;
+		superblock.block_allocation_map[i*5]=0;
 		superblock.inodes[i].name = iNodeNames[i];
 	//finalmente se desmonta el sistema.
 	return unmountFS();
@@ -121,8 +126,12 @@ int createFile(char *fileName)
 		if(strcmp(iNodeNames[i], ""==0){
 			strcpy(inodeNames[i], fileName);
 			superblock.inodes[i].name=fileName;
-			//tbh no sé hasta qué punto funciona esta implementación.
-			superblock.inodes[i].block_numbers[0]=getFirstFreeBlock();
+			int blocknum=getFreeBlock();
+			if(blocknum==-1){
+				printf("error allocating block");
+				return -2;
+			}
+			superblock.inodes[i].block_numbers[0]=blocknum;
 			printf("File %s created with file descriptor %i", fileName, i);
 			return 0;
 		}
@@ -255,4 +264,18 @@ int createLn(char *fileName, char *linkName)
 int removeLn(char *linkName)
 {
     return -2;
+}
+
+int getFreeBlock()
+{
+	for(int i = 0; i< (MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)); i++ ){
+
+		if(superblock.block_allocation_map[i]==0){
+			superblock.block_allocation_map[i]=1;
+			return i;
+		}
+
+	}
+
+	return -1;
 }

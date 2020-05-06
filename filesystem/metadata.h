@@ -33,7 +33,7 @@ typedef struct inode {
 typedef struct SuperBlock {
   uint16_t magic_number //número que permite al sistema de montado ver que se trata del superbloque de este sistema de archivos
   long disk_size; // el tamaño del disco
-  uint64_t inodeMap; // mapa de inodos y bloques
+  bool block_allocation_map [MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)] //mapa que muestra qué bloques hay disponibles.
   struct inode inodes[MAX_NUMBER_FILES]; // array de inodos
 } Superblock;
 
