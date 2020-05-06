@@ -51,16 +51,19 @@ int mkFS(long deviceSize)
 	superblock.disk_size = deviceSize;
 	superblock.magic_number = 38346; //Identifica este sistema de archivos de cara a un sistema de montado. En este caso, es parte del NIA de uno de los autores.
 	superblock.inodeMap = 0;
+	memset(superblock.block_allocation_map, 0, sizeof(superblock.block_allocation_map));
+	
 	
 	//inicializar campos
 	for(int i = 0; i < MAX_NUMBER_FILES; i++) {
 		strcpy(iNodeNames[i], "");
+		//ya que sólo hay 240 bloques válidos, se le asigna un valor out of bounds por defecto.
+		superblock.inodes[i].block_numbers[0]=255;
+		superblock.inodes[i].block_numbers[1]=255;
+		superblock.inodes[i].block_numbers[2]=255;
+		superblock.inodes[i].block_numbers[3]=255;
+		superblock.inodes[i].block_numbers[4]=255;
 		fileState[i] = CLOSED;
-		superblock.block_allocation_map[i]=0;
-		superblock.block_allocation_map[i*2]=0;
-		superblock.block_allocation_map[i*3]=0;
-		superblock.block_allocation_map[i*4]=0;
-		superblock.block_allocation_map[i*5]=0;
 		superblock.inodes[i].name = iNodeNames[i];
 	//finalmente se desmonta el sistema.
 	return unmountFS();
