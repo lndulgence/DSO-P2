@@ -121,10 +121,17 @@ int createFile(char *fileName)
 		if(strcmp(iNodeNames[i], ""==0){
 			strcpy(inodeNames[i], fileName);
 			superblock.inodes[i].name=fileName;
-			//TENDRÍA QUE DEFINIR TODOS LOS BLOQUES QUE SPANEA ESTO PERO XDDDDD JAJ LMAO ME REI EN ALTO
-			superblock.inodes[i].block_numbers
+			//tbh no sé hasta qué punto funciona esta implementación.
+			superblock.inodes[i].block_numbers[0]=INIT_BLOCK+5*i+1;
+			for(int j=1; j<5;j++){
+				superblock.inodes[i].block_numbers[j]=superblock.inodes[i].block_numbers[j-1]+1;
+			}
+			printf("File %s created with file descriptor %i", fileName, i);
+			return 0;
 		}
 	}
+	printf("File could not be created as it would exceed the maximum number of files in the system. Please delete some files before proceeding.");
+	return -1;
 
 }
 
