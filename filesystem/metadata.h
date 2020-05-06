@@ -24,14 +24,11 @@ static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
 }
 
 typedef struct inode {
-  uint8_t type; // 0: fichero 1:dir
   char *name; 
   uint8_t block_numbers[5]; //blocks the file spans
   uint16_t size; // tamaño del fichero en bytes
-  uint16_t pointer; // puntero del fichero, nulo en directorios
-  int level; // nivel
-  char preDir[MAX_NAME_LENGHT]; //directorio padre
-} INode;
+  uint16_t pointer; // puntero del fichero
+} inode;
 
 typedef struct SuperBlock {
   uint16_t magic_number //número que permite al sistema de montado ver que se trata del superbloque de este sistema de archivos

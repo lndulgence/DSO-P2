@@ -19,9 +19,6 @@
 #define CLOSED 0
 #define OPEN 1
 
-//definiciones para los tipos de i-nodos
-#define FILE 0
-#define DIR 1
 
 //definición del bloque inicial
 
@@ -32,9 +29,7 @@
 struct SuperBlock superblock;
 int masterDir; // cantidad de ficheros o directorios en master
 int fileState[MAX_NUMBER_FILES];	// vector que define el estado (abierto o cerrado) de los ficheros
-char iNodeNames[MAX_NUMBER_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros y directorios
-char preDir[MAX_NUMBER_FILES][MAX_NAME_LENGHT]; // array para guardar los nombres de los directorios predecesor del fichero/directorio
-int suDir[MAX_NUMBER_FILES]; // array para guardar la cantidad de ficheros o directoios contenido en un directorio
+char iNodeNames[MAX_NUMBER_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros.
 int levels[MAX_FILE_SIZE]; // el nivel que se encuentra cada fichero: 4 niveles en total
 
 
@@ -62,9 +57,6 @@ int mkFS(long deviceSize)
 		strcpy(iNodeNames[i], "");
 		fileState[i] = CLOSED;
 		superblock.inodes[i].name = iNodeNames[i];
-		levels[i] = 0;
-		strcpy(preDir[i], "")
-
 	//finalmente se desmonta el sistema.
 	return unmountFS();
 }
@@ -109,7 +101,31 @@ int unmountFS(void)
  */
 int createFile(char *fileName)
 {
-	return -2;
+	error_code=checkFile(fileName;)
+	if(error_code==-1){
+		printf("Chosen name exceeds maximum length\n");
+		return -2
+	}
+	
+	if(error_code==-2){
+		printf("File already exists\n");
+		return -1;
+	}
+
+	if(error_code==-3){
+		printf("file name can't be empty\n");
+		return -2
+	}
+	
+	for(int i=0; i<=MAX_NUMBER_FILES; i++){
+		if(strcmp(iNodeNames[i], ""==0){
+			strcpy(inodeNames[i], fileName);
+			superblock.inodes[i].name=fileName;
+			//TENDRÍA QUE DEFINIR TODOS LOS BLOQUES QUE SPANEA ESTO PERO XDDDDD JAJ LMAO ME REI EN ALTO
+			superblock.inodes[i].block_numbers
+		}
+	}
+
 }
 
 /*
@@ -172,8 +188,22 @@ int lseekFile(int fileDescriptor, long offset, int whence)
  */
 
 int checkFile (char * fileName)
-{
-    return -2;
+{	
+	if(strlen(fileName)>MAX_NAME_LENGHT){
+		return -1;
+	}
+	for(int i=0; i<MAX_NUMBER_FILES; i++;){
+		if (strcmp(superblock.inodes[i].name, fileName)==0){
+			return -2;
+		}
+	}
+
+	if(strcmp(fileName, "")==0){
+		return -3;
+	}
+
+	return 0
+    
 }
 
 /*
