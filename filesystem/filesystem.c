@@ -122,10 +122,7 @@ int createFile(char *fileName)
 			strcpy(inodeNames[i], fileName);
 			superblock.inodes[i].name=fileName;
 			//tbh no sé hasta qué punto funciona esta implementación.
-			superblock.inodes[i].block_numbers[0]=INIT_BLOCK+5*i+1;
-			for(int j=1; j<5;j++){
-				superblock.inodes[i].block_numbers[j]=superblock.inodes[i].block_numbers[j-1]+1;
-			}
+			superblock.inodes[i].block_numbers[0]=getFirstFreeBlock();
 			printf("File %s created with file descriptor %i", fileName, i);
 			return 0;
 		}
