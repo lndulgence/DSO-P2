@@ -174,6 +174,13 @@ int removeFile(char *fileName)
 
 	for(int i = 0; i<MAX_FILES;i++){
 
+		if(fileState[i]==OPEN){
+
+			printf("Please close the file before attempting removal\n");
+			return -1;
+
+		}
+
 		if(strcmp(iNodeNames[i], fileName)==0){
 			strcpy(iNodeNames[i], "");
 			superblock.inodes[i].block_numbers[0]=255;
@@ -197,7 +204,30 @@ int removeFile(char *fileName)
  */
 int openFile(char *fileName)
 {
-	return -2;
+	int fd=-1;
+	for(int i=0; i< MAX_FILES; i++){
+		if(strcmp(iNodeNames[i], fileName)==0){
+			fd=i;
+		}
+	}
+
+	if(fd==-1){
+		printf("File does not exist in the system.");
+		return -1;
+	}
+
+	if(fileState[fd]==OPEN){
+		printf("File is already open");
+		return -2;
+	}
+	fileState[fd]=OPEN;
+	
+	if(lseekFile(fd, 0, FS SEEK BEGIN)==-1){
+		printf("error upon setting pointer.")
+		return -2;
+	}
+
+	return fd;
 }
 
 /*
@@ -206,7 +236,19 @@ int openFile(char *fileName)
  */
 int closeFile(int fileDescriptor)
 {
-	return -1;
+	if (fd < 0 || fd > MAX_FILES-1){
+		printf("Invalid fd\n");
+		return -1;
+	}
+
+	if(fileState[fd]==CLOSED){
+		printf("File not open\n");
+		return -1;
+	}
+
+	fileState[fd]=CLOSED;
+
+	return 0;
 }
 
 /*
@@ -215,7 +257,50 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	return -1;
+	uint_64 ra = buffer;
+	if(fileState[fd]==CLOSED){
+		printf("File is not open\n");
+		return -1;
+	}
+
+	if(numBytes>MAX_FILE_SIZE){
+		printf("Parameters exceed maximum file size\n");
+		return -1;
+	}
+
+	char buffer1[2048];
+
+	if(numBytes <= BLOCK_SIZE){
+
+		if(bread("disk.dat", INIT_BLOCK+superblock.inodes.block_numbers[0], buffer1)==-1){
+			printf("bread error on readFile\n");
+			return -1;
+		}
+		memmove(buffer, buffer1, numBytes);
+		return numBytes;
+	}
+
+	int j=0;
+	for(int i=numBytes; i>=0; i-=2048){
+		if(bread("disk.dat",INIT_BLOCK+superblock.inodes.block_numbers[j], buffer1 )==-1){
+			printf("bread error on readFile\n");
+			return -1;
+		}
+
+		if (i>=2048){
+			memmove(buffer, buffer1, 2048);
+			buffer+=2048;
+		}
+		else{
+			memmove(buffer, buffer1, i);
+			buffer=ra;
+		}
+
+		j++;
+	}
+
+
+	return 0;
 }
 
 /*
@@ -233,7 +318,39 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int lseekFile(int fileDescriptor, long offset, int whence)
 {
-	return -1;
+	if (fd < 0 || fd > MAX_FILES-1){
+		printf("Invalid fd\n");
+		return -1;
+	}
+
+	if (strcmp(sb.inodes[fd].name,"")==0){
+		printf("chosen file does not exist\n");
+		return -1;
+	}
+
+	if(whence==FS_SEEK_CUR &&( (superblock.inodes[fileDescriptor].pointer + offset)<0 || (superblock.inodes[fileDescriptor].pointer+offset)> superblock.inodes[fd].size))
+	{
+		printf("Position out of bounds\n");
+		return -1;
+	}
+
+	switch(whence){
+		//Si se desea cambiar el puntero desde la posición anterior, se añade el número de bytes que se desee moveer
+		case FS_SEEK_CUR:
+			superblock.inodes[fd].pointer += offset;
+			break;
+		//Si se desea cambiar a la posición inicial, se pone a 0.
+		case FS_SEEK_BEGIN:
+			superblock.inodes[fd].pointer = 0;
+			break;
+		//Si se desea cambiar a la posición inicial, se pone al tamaño del bloque-1.
+		case FS_SEEK_END:
+			superblock.inodes[fd].pointer = superblock.inodes[fd].size-1;
+			break;
+	}
+
+
+	return 0;
 }
 
 /*
