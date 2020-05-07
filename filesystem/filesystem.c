@@ -28,8 +28,8 @@
 // definir estructuras iniciales del sistema de archivos
 struct SuperBlock superblock;
 int masterDir; // cantidad de ficheros o directorios en master
-int fileState[MAX_NUMBER_FILES];	// vector que define el estado (abierto o cerrado) de los ficheros
-char iNodeNames[MAX_NUMBER_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros.
+int fileState[MAX_FILES];	// vector que define el estado (abierto o cerrado) de los ficheros
+char iNodeNames[MAX_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros.
 int levels[MAX_FILE_SIZE]; // el nivel que se encuentra cada fichero: 4 niveles en total
 
 
@@ -44,18 +44,17 @@ int mkFS(long deviceSize)
 	//Requisito NF6
 	if( deviceSize < ( 460 * 1024 ) || deviceSize > (600*1024) ){
 		printf("Error. Device size not suitable for file system.");
-		return -1
+		return -1;
 	}
 	
 	// inicializar parámetros del sistema de archivo reflejados en el superbloque
 	superblock.disk_size = deviceSize;
 	superblock.magic_number = 38346; //Identifica este sistema de archivos de cara a un sistema de montado. En este caso, es parte del NIA de uno de los autores.
-	superblock.inodeMap = 0;
 	memset(superblock.block_allocation_map, 0, sizeof(superblock.block_allocation_map));
 	
 	
 	//inicializar campos
-	for(int i = 0; i < MAX_NUMBER_FILES; i++) {
+	for(int i = 0; i < MAX_FILES; i++) {
 		strcpy(iNodeNames[i], "");
 		//ya que sólo hay 240 bloques válidos, se le asigna un valor out of bounds por defecto.
 		superblock.inodes[i].block_numbers[0]=255;
@@ -65,6 +64,7 @@ int mkFS(long deviceSize)
 		superblock.inodes[i].block_numbers[4]=255;
 		fileState[i] = CLOSED;
 		superblock.inodes[i].name = iNodeNames[i];
+	}
 	//finalmente se desmonta el sistema.
 	return unmountFS();
 }
@@ -93,7 +93,7 @@ int unmountFS(void)
 {
 
 	// escribir el bloque que contiene los metadatos. La expresión (char *)&(superblock) es una dirección de memoria que apunta al principio del superbloque
-	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(sb))) == -1){
+	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(superblock))) == -1){
 		printf("bwrite operation error on unmount\n");
 		return -1;
 	}
@@ -103,16 +103,31 @@ int unmountFS(void)
 	
 }
 
+int getFreeBlock(void)
+{
+	for(int i = 0; i< (MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)); i++ ){
+
+		if(superblock.block_allocation_map[i]==0){
+			superblock.block_allocation_map[i]=1;
+			return i;
+		}
+
+	}
+
+	return -1;
+}
+
+
 /*
  * @brief	Creates a new file, provided it it doesn't exist in the file system.
  * @return	0 if success, -1 if the file already exists, -2 in case of error.
  */
 int createFile(char *fileName)
 {
-	error_code=checkFile(fileName;)
+	int error_code=checkFile(fileName);
 	if(error_code==-1){
 		printf("Chosen name exceeds maximum length\n");
-		return -2
+		return -2;
 	}
 	
 	if(error_code==-2){
@@ -122,14 +137,14 @@ int createFile(char *fileName)
 
 	if(error_code==-3){
 		printf("file name can't be empty\n");
-		return -2
+		return -2;
 	}
 	
-	for(int i=0; i<=MAX_NUMBER_FILES; i++){
-		if(strcmp(iNodeNames[i], ""==0){
-			strcpy(inodeNames[i], fileName);
-			superblock.inodes[i].name=fileName;
-			int blocknum=getFreeBlock();
+	for(int i=0; i<=MAX_FILES; i++){
+		if(strcmp(iNodeNames[i], "")==0){
+			strcpy(iNodeNames[i], fileName);
+			superblock.inodes[i].name= &iNodeNames[i][0];
+			int blocknum = getFreeBlock();
 			if(blocknum==-1){
 				printf("error allocating block");
 				return -2;
@@ -139,6 +154,7 @@ int createFile(char *fileName)
 			return 0;
 		}
 	}
+	
 	printf("File could not be created as it would exceed the maximum number of files in the system. Please delete some files before proceeding.");
 	return -1;
 
@@ -150,7 +166,29 @@ int createFile(char *fileName)
  */
 int removeFile(char *fileName)
 {
-	return -2;
+
+	if(strcmp(fileName, "")==0){
+		printf("Please enter a valid file name");
+		return -2;
+	}
+
+	for(int i = 0; i<MAX_FILES;i++){
+
+		if(strcmp(iNodeNames[i], fileName)==0){
+			strcpy(iNodeNames[i], "");
+			superblock.inodes[i].block_numbers[0]=255;
+			superblock.inodes[i].block_numbers[1]=255;
+			superblock.inodes[i].block_numbers[2]=255;
+			superblock.inodes[i].block_numbers[3]=255;
+			superblock.inodes[i].block_numbers[4]=255;
+			superblock.inodes[i].size=0;
+			superblock.inodes[i].pointer=0;
+			return 0;
+		}
+
+	}
+	printf("File does not exist in the system");
+	return -1;
 }
 
 /*
@@ -208,7 +246,7 @@ int checkFile (char * fileName)
 	if(strlen(fileName)>MAX_NAME_LENGHT){
 		return -1;
 	}
-	for(int i=0; i<MAX_NUMBER_FILES; i++;){
+	for(int i=0; i<MAX_FILES; i++){
 		if (strcmp(superblock.inodes[i].name, fileName)==0){
 			return -2;
 		}
@@ -218,7 +256,7 @@ int checkFile (char * fileName)
 		return -3;
 	}
 
-	return 0
+	return 0;
     
 }
 
@@ -269,16 +307,3 @@ int removeLn(char *linkName)
     return -2;
 }
 
-int getFreeBlock()
-{
-	for(int i = 0; i< (MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)); i++ ){
-
-		if(superblock.block_allocation_map[i]==0){
-			superblock.block_allocation_map[i]=1;
-			return i;
-		}
-
-	}
-
-	return -1;
-}

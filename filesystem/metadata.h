@@ -10,6 +10,8 @@
  *
  */
 #include <stdint.h>
+#include <stdbool.h> 
+#include <string.h>
 #define MAX_FILES 48 // NF1
 #define MAX_NAME_LENGHT 32  // NF2
 #define BLOCK_SIZE 2048 // NF4
@@ -31,9 +33,9 @@ typedef struct inode {
 } inode;
 
 typedef struct SuperBlock {
-  uint16_t magic_number //número que permite al sistema de montado ver que se trata del superbloque de este sistema de archivos
+  uint16_t magic_number; //número que permite al sistema de montado ver que se trata del superbloque de este sistema de archivos
   long disk_size; // el tamaño del disco
-  bool block_allocation_map [MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)] //mapa que muestra qué bloques hay disponibles.
-  struct inode inodes[MAX_NUMBER_FILES]; // array de inodos
+  bool block_allocation_map [MAX_FILES*(MAX_FILE_SIZE/BLOCK_SIZE)]; //mapa que muestra qué bloques hay disponibles.
+  struct inode inodes[MAX_FILES]; // array de inodos
 } Superblock;
 
