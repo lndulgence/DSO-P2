@@ -222,8 +222,8 @@ int openFile(char *fileName)
 	}
 	fileState[fd]=OPEN;
 	
-	if(lseekFile(fd, 0, FS SEEK BEGIN)==-1){
-		printf("error upon setting pointer.")
+	if(lseekFile(fd, 0, FS_SEEK_BEGIN)==-1){
+		printf("error upon setting pointer.");
 		return -2;
 	}
 
@@ -236,17 +236,17 @@ int openFile(char *fileName)
  */
 int closeFile(int fileDescriptor)
 {
-	if (fd < 0 || fd > MAX_FILES-1){
+	if (fileDescriptor < 0 || fileDescriptor > MAX_FILES-1){
 		printf("Invalid fd\n");
 		return -1;
 	}
 
-	if(fileState[fd]==CLOSED){
+	if(fileState[fileDescriptor]==CLOSED){
 		printf("File not open\n");
 		return -1;
 	}
 
-	fileState[fd]=CLOSED;
+	fileState[fileDescriptor]=CLOSED;
 
 	return 0;
 }
@@ -257,8 +257,8 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	uint_64 ra = buffer;
-	if(fileState[fd]==CLOSED){
+	uint64_t ra = (uint64_t)buffer;
+	if(fileState[fileDescriptor]==CLOSED){
 		printf("File is not open\n");
 		return -1;
 	}
@@ -293,7 +293,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 		}
 		else{
 			memmove(buffer, buffer1, i);
-			buffer=ra;
+			buffer=(void *)ra;
 		}
 
 		j++;
@@ -309,7 +309,80 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int writeFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	return -1;
+
+		uint64_t ra = (uint64_t)buffer;
+		if(fileState[fileDescriptor]==CLOSED){
+		printf("File is not open\n");
+		return -1;
+	}
+
+	if(superblock.inodes[fileDescriptor].size+numBytes>MAX_FILE_SIZE){
+		printf("Parameters exceed maximum file size\n");
+		return -1;
+	}
+
+	int ptr=superblock.inodes[fileDescriptor].pointer;
+
+	int initial_blocknum= (int)(ptr/2048);
+	int blockoffset= (int)(ptr%2048);
+	char * truebuffer;
+	if(blockoffset>0){
+		char buffer1[blockoffset];
+		if(bread("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], buffer1)==-1){
+			
+			return -1;
+		}
+
+		char truebufferino [blockoffset+numBytes];
+		truebuffer=truebufferino;
+		memcpy(truebuffer, buffer1,blockoffset);
+		void *addr=truebuffer+blockoffset;
+		memcpy(addr, buffer, numBytes);
+	}
+
+	else{
+
+		truebuffer=buffer;
+	}
+
+	if(sizeof(truebuffer)<=BLOCK_SIZE){
+		if(bwrite("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
+			printf("bwrite error in writeFile");
+			return -1;
+		}
+		return 0;
+	}
+
+	else{
+		void * address=truebuffer;
+		for(int i=sizeof(truebuffer); i>0;i-2048){
+			
+			if(i>=2048){
+
+				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
+					printf("bwrite error in writeFile");
+					return -1;
+				}
+			initial_blocknum++;
+			address+=2048;
+			}
+
+			else{
+
+				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
+					printf("bwrite error in writeFile");
+					return -1;
+				}			
+
+
+			}
+
+		}
+		return 0;
+
+	}
+
+
 }
 
 /*
@@ -323,7 +396,7 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 		return -1;
 	}
 
-	if (strcmp(sb.inodes[fd].name,"")==0){
+	if (strcmp(superblock.inodes[fd].name,"")==0){
 		printf("chosen file does not exist\n");
 		return -1;
 	}

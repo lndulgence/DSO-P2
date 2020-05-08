@@ -52,6 +52,7 @@ int main()
 	///////
 
 	ret = createFile("/test.txt");
+	
 	if (ret != 0)
 	{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
@@ -60,6 +61,24 @@ int main()
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
 	///////
+	ret= openFile("/test.txt");
+	fd=ret;
+
+	if(ret!=0){
+		printf("error on open");
+		return -1;
+	}
+
+	char * a [4096];
+	memset(a, d, 4096);
+
+	ret=writeFile(fd, a, 3600);
+	if(ret!=0){
+		printf("error on write");
+		return -1;
+	}
+
+	
 
 	ret = unmountFS();
 	if (ret != 0)
