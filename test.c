@@ -28,9 +28,8 @@
 int main()
 {
 	int ret;
-	printf("%i", DEV_SIZE);
 	
-	///////
+	
 	ret = mkFS(DEV_SIZE);
 	if (ret != 0)
 	{
@@ -60,25 +59,69 @@ int main()
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
-	///////
+
 	ret= openFile("/test.txt");
-	fd=ret;
+	int fd=ret;
 
 	if(ret!=0){
 		printf("error on open");
 		return -1;
 	}
+	else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
-	char * a [4096];
-	memset(a, d, 4096);
+	}
 
-	ret=writeFile(fd, a, 3600);
-	if(ret!=0){
+	char * a [3200];
+	memset(a, 'd', sizeof(a));
+	lseekFile(fd, 10, FS_SEEK_CUR);
+
+	ret=writeFile(fd, a, 3000);
+	if(ret<0){
 		printf("error on write");
 		return -1;
 	}
 
+	else {
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST writeFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	lseekFile(fd, 0, FS_SEEK_BEGIN);
+	lseekFile(fd, 10, FS_SEEK_CUR);
+
+	char  b [3000];
+	memset(b, 'd', sizeof(b));
+
+	char  c [3000];
+
 	
+
+	ret=readFile(fd, c, 3000);
+
+	
+
+	if(ret<0){
+		printf("error on read");
+		return -1;
+	}
+
+	else {
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	if(sizeof(c)==sizeof(b) && memcmp(c, b, sizeof(c))==0){
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile and writeFile consistency ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile and writeFile consistency ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
 
 	ret = unmountFS();
 	if (ret != 0)

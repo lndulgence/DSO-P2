@@ -150,7 +150,7 @@ int createFile(char *fileName)
 				return -2;
 			}
 			superblock.inodes[i].block_numbers[0]=blocknum;
-			printf("File %s created with file descriptor %i", fileName, i);
+			printf("File %s created with file descriptor %i\n", fileName, i);
 			return 0;
 		}
 	}
@@ -203,7 +203,8 @@ int removeFile(char *fileName)
  * @return	The file descriptor if possible, -1 if file does not exist, -2 in case of error..
  */
 int openFile(char *fileName)
-{
+{	
+	
 	int fd=-1;
 	for(int i=0; i< MAX_FILES; i++){
 		if(strcmp(iNodeNames[i], fileName)==0){
@@ -257,50 +258,44 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	uint64_t ra = (uint64_t)buffer;
+	
 	if(fileState[fileDescriptor]==CLOSED){
 		printf("File is not open\n");
 		return -1;
-	}
+		}
 
-	if(numBytes>MAX_FILE_SIZE){
-		printf("Parameters exceed maximum file size\n");
+	if(superblock.inodes[fileDescriptor].pointer+numBytes>MAX_FILE_SIZE){
+			numBytes=MAX_FILE_SIZE-superblock.inodes[fileDescriptor].pointer;
+		}
+
+
+
+	int ptr=superblock.inodes[fileDescriptor].pointer;
+	int initial_blocknum= (int)(ptr/2048);
+	int final_blocknum = (int)((ptr+numBytes)/2048);
+	int blockoffset= (int)(ptr%2048);
+	int otheroffset=(2048*((final_blocknum-initial_blocknum)+1))-(blockoffset+numBytes);
+	int size=blockoffset+numBytes+otheroffset;
+	char truebuffer [blockoffset+numBytes+otheroffset];
+	void * address=truebuffer;
+	
+	for(int i=size; i>0; i-=2048){
+		if(bread("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], address)==-1){
+			printf("bread error on readFile\n");
+			return -1;
+		}
+		address+=2048;
+		initial_blocknum++;
+	}
+	address=truebuffer+blockoffset;
+	memcpy(buffer, address, numBytes);
+	if(lseekFile(fileDescriptor, numBytes, FS_SEEK_CUR)==-1){
+		printf("error setting pointer");
 		return -1;
 	}
-
-	char buffer1[2048];
-
-	if(numBytes <= BLOCK_SIZE){
-
-		if(bread("disk.dat", INIT_BLOCK+superblock.inodes.block_numbers[0], buffer1)==-1){
-			printf("bread error on readFile\n");
-			return -1;
-		}
-		memmove(buffer, buffer1, numBytes);
-		return numBytes;
-	}
-
-	int j=0;
-	for(int i=numBytes; i>=0; i-=2048){
-		if(bread("disk.dat",INIT_BLOCK+superblock.inodes.block_numbers[j], buffer1 )==-1){
-			printf("bread error on readFile\n");
-			return -1;
-		}
-
-		if (i>=2048){
-			memmove(buffer, buffer1, 2048);
-			buffer+=2048;
-		}
-		else{
-			memmove(buffer, buffer1, i);
-			buffer=(void *)ra;
-		}
-
-		j++;
-	}
+	return numBytes;
 
 
-	return 0;
 }
 
 /*
@@ -308,81 +303,96 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
  * @return	Number of bytes properly written, -1 in case of error.
  */
 int writeFile(int fileDescriptor, void *buffer, int numBytes)
-{
+{			
+	
 
-		uint64_t ra = (uint64_t)buffer;
-		if(fileState[fileDescriptor]==CLOSED){
-		printf("File is not open\n");
-		return -1;
+	if(fileState[fileDescriptor]==CLOSED){
+	printf("File is not open\n");
+	return -1;
 	}
 
-	if(superblock.inodes[fileDescriptor].size+numBytes>MAX_FILE_SIZE){
-		printf("Parameters exceed maximum file size\n");
-		return -1;
+	if(superblock.inodes[fileDescriptor].pointer+numBytes>MAX_FILE_SIZE){
+		numBytes=MAX_FILE_SIZE-superblock.inodes[fileDescriptor].pointer;
 	}
 
 	int ptr=superblock.inodes[fileDescriptor].pointer;
-
 	int initial_blocknum= (int)(ptr/2048);
+	int final_blocknum = (int)((ptr+numBytes)/2048);
+	if(superblock.inodes[fileDescriptor].block_numbers[initial_blocknum-1]==255){
+				superblock.inodes[fileDescriptor].block_numbers[initial_blocknum-1]=getFreeBlock();
+	}
 	int blockoffset= (int)(ptr%2048);
-	char * truebuffer;
-	if(blockoffset>0){
-		char buffer1[blockoffset];
-		if(bread("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], buffer1)==-1){
+	int otheroffset=(2048*((final_blocknum-initial_blocknum)+1))-(blockoffset+numBytes);
+
+	char buffer1[2048];
+	if(bread("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum-1], buffer1)==-1){
 			
-			return -1;
-		}
-
-		char truebufferino [blockoffset+numBytes];
-		truebuffer=truebufferino;
-		memcpy(truebuffer, buffer1,blockoffset);
-		void *addr=truebuffer+blockoffset;
-		memcpy(addr, buffer, numBytes);
+		return -1;
 	}
 
-	else{
-
-		truebuffer=buffer;
+	char buffer2[2048];
+	if(bread("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[final_blocknum-1], buffer2)==-1){
+			
+		return -1;
 	}
 
-	if(sizeof(truebuffer)<=BLOCK_SIZE){
+	//////////////
+	char truebuffer [blockoffset+numBytes+otheroffset];
+	int size=blockoffset+numBytes+otheroffset;
+	memcpy(truebuffer, buffer1,blockoffset);
+	void *addr=truebuffer+blockoffset;
+	memcpy(addr, buffer, numBytes);
+	addr+=numBytes;
+	void * buffer2off=buffer2+(2048-otheroffset);
+	memcpy(addr, buffer2off, otheroffset);
+
+
+
+	if(size<=BLOCK_SIZE){
 		if(bwrite("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
 			printf("bwrite error in writeFile");
 			return -1;
 		}
-		return 0;
+		return numBytes;
 	}
 
 	else{
 		void * address=truebuffer;
-		for(int i=sizeof(truebuffer); i>0;i-2048){
-			
+		for(int i=size; i>0;i-=2048){
+
 			if(i>=2048){
 
-				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
+				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], address)==-1){
 					printf("bwrite error in writeFile");
 					return -1;
 				}
 			initial_blocknum++;
+			if(superblock.inodes[fileDescriptor].block_numbers[initial_blocknum]==255){
+				superblock.inodes[fileDescriptor].block_numbers[initial_blocknum]=getFreeBlock();
+			}
+
 			address+=2048;
 			}
 
 			else{
 
-				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
+				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], address)==-1){
 					printf("bwrite error in writeFile");
 					return -1;
 				}			
 
-
 			}
 
 		}
-		return 0;
+		
+		return numBytes;
 
 	}
-
-
+	if(lseekFile(fileDescriptor, numBytes, FS_SEEK_CUR)==-1){
+		printf("error setting pointer");
+		return -1;
+	}
+	return numBytes;
 }
 
 /*
@@ -391,17 +401,17 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int lseekFile(int fileDescriptor, long offset, int whence)
 {
-	if (fd < 0 || fd > MAX_FILES-1){
+	if (fileDescriptor < 0 || fileDescriptor > MAX_FILES-1){
 		printf("Invalid fd\n");
 		return -1;
 	}
 
-	if (strcmp(superblock.inodes[fd].name,"")==0){
+	if (strcmp(superblock.inodes[fileDescriptor].name,"")==0){
 		printf("chosen file does not exist\n");
 		return -1;
 	}
 
-	if(whence==FS_SEEK_CUR &&( (superblock.inodes[fileDescriptor].pointer + offset)<0 || (superblock.inodes[fileDescriptor].pointer+offset)> superblock.inodes[fd].size))
+	if(whence==FS_SEEK_CUR &&( (superblock.inodes[fileDescriptor].pointer + offset)<0 || (superblock.inodes[fileDescriptor].pointer+offset)> MAX_FILE_SIZE))
 	{
 		printf("Position out of bounds\n");
 		return -1;
@@ -410,18 +420,17 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 	switch(whence){
 		//Si se desea cambiar el puntero desde la posición anterior, se añade el número de bytes que se desee moveer
 		case FS_SEEK_CUR:
-			superblock.inodes[fd].pointer += offset;
+			superblock.inodes[fileDescriptor].pointer += offset;
 			break;
 		//Si se desea cambiar a la posición inicial, se pone a 0.
 		case FS_SEEK_BEGIN:
-			superblock.inodes[fd].pointer = 0;
+			superblock.inodes[fileDescriptor].pointer = 0;
 			break;
-		//Si se desea cambiar a la posición inicial, se pone al tamaño del bloque-1.
+		//Si se desea cambiar a la posición final, se pone al tamaño del bloque-1.
 		case FS_SEEK_END:
-			superblock.inodes[fd].pointer = superblock.inodes[fd].size-1;
+			superblock.inodes[fileDescriptor].pointer = superblock.inodes[fileDescriptor].size-1;
 			break;
 	}
-
 
 	return 0;
 }

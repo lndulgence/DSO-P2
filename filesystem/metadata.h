@@ -30,7 +30,7 @@ typedef struct inode {
   char *name; 
   uint8_t block_numbers[5]; //blocks the file spans
   uint16_t size; // tamaño del fichero en bytes
-  uint16_t pointer; // puntero del fichero
+  int pointer; // puntero del fichero
 } inode;
 
 typedef struct SuperBlock {
