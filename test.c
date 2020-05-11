@@ -24,11 +24,28 @@
 
 #define N_BLOCKS 25					  // Number of blocks in the device
 #define DEV_SIZE 460*1024 + 1// Device size, in bytes
-
+//please note that all test must return SUCCESS, even in operations that are supposed to fail. In this case, failure to execute the function is considered a successful test.
 int main()
 {
 	int ret;
+	char * a [3200];
+	memset(a, 'd', sizeof(a));
+
+	ret=mkFS(460*1024-1);
+	if(ret>=0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mkFS (invalid parameters, under minimum size) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mkFS (invalid parameters, under minimum size)", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	
+	ret=mkFS(600*1024+1);
+	if(ret>=0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mkFS (invalid parameters, over max size) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mkFS (invalid parameters, over max size)", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	
 	
 	ret = mkFS(DEV_SIZE);
@@ -50,6 +67,21 @@ int main()
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mountFS ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
 	///////
+	ret=createFile("");
+	if (ret != -2)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (empty name)", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (empty name) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	ret=createFile("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+	if (ret !=-2)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (too long name)", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (too long name) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
 	ret = createFile("/test.txt");
 	
@@ -59,6 +91,26 @@ int main()
 		return -1;
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	ret = createFile("/test.txt");
+	
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (where file already exists) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile (where file already exists) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+
+
+	ret=writeFile(0, a, 3000);
+	if (ret >= 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST writeFile on a closed file ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST writeFile on a closed file", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
 
 
 	ret= openFile("/test.txt");
@@ -73,10 +125,8 @@ int main()
 
 	}
 
-	char * a [3200];
-	memset(a, 'd', sizeof(a));
+	
 	lseekFile(fd, 10, FS_SEEK_CUR);
-
 	ret=writeFile(fd, a, 3000);
 	if(ret<0){
 		printf("error on write");
@@ -98,11 +148,15 @@ int main()
 	char  c [3000];
 
 	
+	ret=readFile(fd,c,3001);
+		if (ret >= 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile with numBytes bigger than file size", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		return -1;
+	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile with numBytes bigger than file size", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
 	ret=readFile(fd, c, 3000);
-
-	
-
 	if(ret<0){
 		printf("error on read");
 		return -1;
@@ -315,7 +369,57 @@ int main()
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a file whose link is no longer open ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 
 	}
+	fd=openFile("/test.txt");
+	ret=removeFile("/test.txt");
+		if(ret<0){
 
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile on an open file", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile on an open file ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+	closeFile(fd);
+	ret=removeFile("/test.txt");
+		if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=removeFile("/test.txt");
+		if(ret<0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile on an already removed file ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeFile on an already removed file", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+	ret=removeLn("link");
+		if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeLink ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST removeLink", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
 
 
 	//////////////////////////////////////////

@@ -175,8 +175,7 @@ int removeFile(char *fileName)
 	}
 
 	for(int i = 0; i<MAX_FILES;i++){
-
-		if(fileState[i]==OPEN){
+		if(strcmp(iNodeNames[i], fileName)==0 && fileState[i]==OPEN){
 
 			printf("Please close the file before attempting removal\n");
 			return -1;
@@ -274,7 +273,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 		printf("File is not open\n");
 		return -1;
 		}
-	if(superblock.inodes[fileDescriptor].pointer+numBytes>MAX_FILE_SIZE){
+	if(superblock.inodes[fileDescriptor].pointer+numBytes>superblock.inodes[fileDescriptor].size){
 			numBytes=MAX_FILE_SIZE-superblock.inodes[fileDescriptor].pointer;
 		}
 	int ptr=superblock.inodes[fileDescriptor].pointer;
@@ -462,6 +461,11 @@ int checkFile (char * fileName)
 		return -1;
 	}
 
+	for(int i=0; i<MAX_FILES;i++){
+		if(strcmp(superblock.inodes[i].name, "")!=0 && strcmp(superblock.inodes[i].name, fileName)==0){
+			return -2;
+		}
+	}
 
 	if(strcmp(fileName, "")==0){
 		return -3;
