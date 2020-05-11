@@ -19,9 +19,8 @@
 #define CLOSED 0
 #define OPEN 1
 
-
-//definición del bloque inicial
-
+#define LINK 1
+#define FILE 0
 // el número del bloque inicial
 #define INIT_BLOCK 1
 
@@ -30,7 +29,7 @@ struct SuperBlock superblock;
 int masterDir; // cantidad de ficheros o directorios en master
 int fileState[MAX_FILES];	// vector que define el estado (abierto o cerrado) de los ficheros
 char iNodeNames[MAX_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros.
-int levels[MAX_FILE_SIZE]; // el nivel que se encuentra cada fichero: 4 niveles en total
+
 
 
 
@@ -40,10 +39,10 @@ int levels[MAX_FILE_SIZE]; // el nivel que se encuentra cada fichero: 4 niveles 
  * @return 	0 if success, -1 otherwise.
  */
 int mkFS(long deviceSize)
-{
+{	
 	//Requisito NF6
 	if( deviceSize < ( 460 * 1024 ) || deviceSize > (600*1024) ){
-		printf("Error. Device size not suitable for file system.");
+		printf("Error. Device size not suitable for file system.\n");
 		return -1;
 	}
 	
@@ -64,6 +63,7 @@ int mkFS(long deviceSize)
 		superblock.inodes[i].block_numbers[4]=255;
 		fileState[i] = CLOSED;
 		superblock.inodes[i].name = iNodeNames[i];
+		superblock.inodes[i].crc32=(uint32_t)0;
 	}
 	//finalmente se desmonta el sistema.
 	return unmountFS();
@@ -81,6 +81,7 @@ int mountFS(void)
 		return -1;
 	}
 	
+
 	return 0;
 	
 }
@@ -97,6 +98,7 @@ int unmountFS(void)
 		printf("bwrite operation error on unmount\n");
 		return -1;
 	}
+	
 
 	return 0;
 
@@ -143,10 +145,10 @@ int createFile(char *fileName)
 	for(int i=0; i<=MAX_FILES; i++){
 		if(strcmp(iNodeNames[i], "")==0){
 			strcpy(iNodeNames[i], fileName);
-			superblock.inodes[i].name= &iNodeNames[i][0];
+			superblock.inodes[i].name=iNodeNames[i];
 			int blocknum = getFreeBlock();
 			if(blocknum==-1){
-				printf("error allocating block");
+				printf("error allocating block\n");
 				return -2;
 			}
 			superblock.inodes[i].block_numbers[0]=blocknum;
@@ -155,7 +157,7 @@ int createFile(char *fileName)
 		}
 	}
 	
-	printf("File could not be created as it would exceed the maximum number of files in the system. Please delete some files before proceeding.");
+	printf("File could not be created as it would exceed the maximum number of files in the system. Please delete some files before proceeding.\n");
 	return -1;
 
 }
@@ -168,7 +170,7 @@ int removeFile(char *fileName)
 {
 
 	if(strcmp(fileName, "")==0){
-		printf("Please enter a valid file name");
+		printf("Please enter a valid file name\n");
 		return -2;
 	}
 
@@ -194,7 +196,7 @@ int removeFile(char *fileName)
 		}
 
 	}
-	printf("File does not exist in the system");
+	printf("File does not exist in the system\n");
 	return -1;
 }
 
@@ -213,18 +215,23 @@ int openFile(char *fileName)
 	}
 
 	if(fd==-1){
-		printf("File does not exist in the system.");
+		printf("File does not exist in the system.\n");
 		return -1;
 	}
 
+	if(superblock.inodes[fd].type==LINK){
+		fd=superblock.inodes[fd].fd;
+	}
+
 	if(fileState[fd]==OPEN){
-		printf("File is already open");
+
+		printf("File is already open \n");
 		return -2;
 	}
 	fileState[fd]=OPEN;
 	
 	if(lseekFile(fd, 0, FS_SEEK_BEGIN)==-1){
-		printf("error upon setting pointer.");
+		printf("error upon setting pointer.\n");
 		return -2;
 	}
 
@@ -247,8 +254,13 @@ int closeFile(int fileDescriptor)
 		return -1;
 	}
 
-	fileState[fileDescriptor]=CLOSED;
+	if(superblock.inodes[fileDescriptor].openint==1){
+		printf("file open with integrity; must be closed with integrity as well");
+		return -1;
+	}
 
+	fileState[fileDescriptor]=CLOSED;
+	unmountFS();
 	return 0;
 }
 
@@ -258,18 +270,13 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	
 	if(fileState[fileDescriptor]==CLOSED){
 		printf("File is not open\n");
 		return -1;
 		}
-
 	if(superblock.inodes[fileDescriptor].pointer+numBytes>MAX_FILE_SIZE){
 			numBytes=MAX_FILE_SIZE-superblock.inodes[fileDescriptor].pointer;
 		}
-
-
-
 	int ptr=superblock.inodes[fileDescriptor].pointer;
 	int initial_blocknum= (int)(ptr/2048);
 	int final_blocknum = (int)((ptr+numBytes)/2048);
@@ -290,12 +297,10 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	address=truebuffer+blockoffset;
 	memcpy(buffer, address, numBytes);
 	if(lseekFile(fileDescriptor, numBytes, FS_SEEK_CUR)==-1){
-		printf("error setting pointer");
+		printf("error setting pointer\n");
 		return -1;
 	}
 	return numBytes;
-
-
 }
 
 /*
@@ -345,17 +350,16 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	addr+=numBytes;
 	void * buffer2off=buffer2+(2048-otheroffset);
 	memcpy(addr, buffer2off, otheroffset);
-
+	int j=initial_blocknum;
 
 
 	if(size<=BLOCK_SIZE){
 		if(bwrite("disk.dat", INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], truebuffer)==-1){
-			printf("bwrite error in writeFile");
+			printf("bwrite error in writeFile\n");
 			return -1;
 		}
-		return numBytes;
 	}
-
+	
 	else{
 		void * address=truebuffer;
 		for(int i=size; i>0;i-=2048){
@@ -363,7 +367,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 			if(i>=2048){
 
 				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], address)==-1){
-					printf("bwrite error in writeFile");
+					printf("bwrite error in writeFile\n");
 					return -1;
 				}
 			initial_blocknum++;
@@ -377,7 +381,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 			else{
 
 				if(bwrite("disk.dat",INIT_BLOCK+superblock.inodes[fileDescriptor].block_numbers[initial_blocknum], address)==-1){
-					printf("bwrite error in writeFile");
+					printf("bwrite error in writeFile\n");
 					return -1;
 				}			
 
@@ -385,13 +389,24 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 		}
 		
-		return numBytes;
 
 	}
 	if(lseekFile(fileDescriptor, numBytes, FS_SEEK_CUR)==-1){
-		printf("error setting pointer");
+		printf("error setting pointer\n");
 		return -1;
 	}
+
+	for(int i=0; i<j;i++){
+		if(superblock.inodes[fileDescriptor].block_numbers[i]==255){
+			superblock.inodes[fileDescriptor].block_numbers[i]=getFreeBlock();
+		}
+	}
+
+	if(superblock.inodes[fileDescriptor].pointer>superblock.inodes[fileDescriptor].size){
+		superblock.inodes[fileDescriptor].size+=superblock.inodes[fileDescriptor].pointer+superblock.inodes[fileDescriptor].size;
+
+	}
+
 	return numBytes;
 }
 
@@ -442,18 +457,17 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 
 int checkFile (char * fileName)
 {	
+	
 	if(strlen(fileName)>MAX_NAME_LENGHT){
 		return -1;
 	}
-	for(int i=0; i<MAX_FILES; i++){
-		if (strcmp(superblock.inodes[i].name, fileName)==0){
-			return -2;
-		}
-	}
+
 
 	if(strcmp(fileName, "")==0){
 		return -3;
 	}
+
+
 
 	return 0;
     
@@ -466,7 +480,29 @@ int checkFile (char * fileName)
 
 int includeIntegrity (char * fileName)
 {
-    return -2;
+	int fd=openFile(fileName);
+	if (fd<0){
+		return fd;
+	}
+	if(superblock.inodes[fd].size==0){
+		printf("can't add integrity to an empty file\n");
+		closeFile(fd);
+		return -2;
+	}
+	if(superblock.inodes[fd].crc32!=0){
+		printf("File already has integrity\n");
+		return -2;
+	}
+	unsigned char buffer [superblock.inodes[fd].size];
+
+	if(readFile(fd, buffer, superblock.inodes[fd].size)<0){
+		return -2;
+	}
+	closeFile(fd);
+	superblock.inodes[fd].crc32= CRC32(buffer, sizeof(buffer));
+	
+	
+    return 0;
 }
 
 /*
@@ -474,9 +510,40 @@ int includeIntegrity (char * fileName)
  * @return	The file descriptor if possible, -1 if file does not exist, -2 if the file is corrupted, -3 in case of error
  */
 int openFileIntegrity(char *fileName)
-{
+{	
 
-    return -2;
+	int fd=openFile(fileName);
+	if(fd<0){
+		return fd;
+	}
+	if(superblock.inodes[fd].crc32==0){
+		printf("File integrity has not been included\n");
+		fileState[fd]=CLOSED;
+		return -3;
+	}
+	
+	
+	unsigned char buffer [superblock.inodes[fd].size];
+
+	if(readFile(fd, buffer, superblock.inodes[fd].size)<0){
+		return -3;
+	}
+	closeFile(fd);
+
+	uint32_t comp= CRC32(buffer, sizeof(buffer));
+
+
+	if(comp!= superblock.inodes[fd].crc32){
+		printf("file is corrupted\n");
+		return -2;
+	}
+	if(lseekFile(fd, 0, FS_SEEK_BEGIN)==-1){
+		printf("error upon setting pointer.\n");
+		return -2;
+	}
+	fileState[fd]=OPEN;
+	superblock.inodes[fd].openint=1;
+	return fd;
 }
 
 /*
@@ -484,8 +551,37 @@ int openFileIntegrity(char *fileName)
  * @return	0 if success, -1 otherwise.
  */
 int closeFileIntegrity(int fileDescriptor)
-{
-    return -1;
+{	
+	if(fileState[fileDescriptor]==CLOSED){
+		printf("file is not open\n");
+		return -2;
+	}
+	if(superblock.inodes[fileDescriptor].openint==0){
+		printf("file has been opened without integrity; must be closed without it.\n");
+		return -2;
+	}
+	else{
+		superblock.inodes[fileDescriptor].openint=0;
+	}
+	if(lseekFile(fileDescriptor, 0, FS_SEEK_BEGIN)==-1){
+		printf("error upon setting pointer.\n");
+		return -1;
+	}
+
+	unsigned char buffer [superblock.inodes[fileDescriptor].size];
+
+	if(readFile(fileDescriptor, buffer, superblock.inodes[fileDescriptor].size)<0){
+		return -1;
+	}
+	int ret=closeFile(fileDescriptor);
+	if(ret<0){
+		return ret;
+	}
+
+	uint32_t comp= CRC32(buffer, sizeof(buffer));
+	superblock.inodes[fileDescriptor].crc32=comp;
+	return 0;
+    
 }
 
 /*
@@ -493,8 +589,38 @@ int closeFileIntegrity(int fileDescriptor)
  * @return	0 if success, -1 if file does not exist, -2 in case of error.
  */
 int createLn(char *fileName, char *linkName)
-{
-    return -1;
+{	
+	int fd=openFile(fileName);
+	if(fd<0){
+		printf("error opening file");
+	}
+	closeFile(fd);
+	int error_code=checkFile(linkName);
+	if(error_code==-1){
+		printf("Chosen name exceeds maximum length\n");
+		return -2;
+	}
+	
+	if(error_code==-2){
+		printf("File already exists\n");
+		return -1;
+	}
+
+	if(error_code==-3){
+		printf("file name can't be empty\n");
+		return -2;
+	}
+
+	for(int i=0; i<MAX_FILES; i++){
+		if(strcmp(iNodeNames[i], "")==0){
+			strcpy(iNodeNames[i], linkName);
+			superblock.inodes[i].name=iNodeNames[i];
+			superblock.inodes[i].type=LINK;
+			superblock.inodes[i].fd=fd;
+		}
+	}
+
+    return 0;
 }
 
 /*
@@ -502,7 +628,30 @@ int createLn(char *fileName, char *linkName)
  * @return 	0 if the file is correct, -1 if the symbolic link does not exist, -2 in case of error.
  */
 int removeLn(char *linkName)
-{
-    return -2;
+{	
+	if(strcmp(linkName, "")==0){
+		printf("Please enter a valid link name\n");
+		return -2;
+	}
+
+	for(int i = 0; i<MAX_FILES;i++){
+
+		if(strcmp(iNodeNames[i], linkName)==0){
+			strcpy(iNodeNames[i], "");
+			superblock.inodes[i].block_numbers[0]=255;
+			superblock.inodes[i].block_numbers[1]=255;
+			superblock.inodes[i].block_numbers[2]=255;
+			superblock.inodes[i].block_numbers[3]=255;
+			superblock.inodes[i].block_numbers[4]=255;
+			superblock.inodes[i].size=0;
+			superblock.inodes[i].pointer=0;
+			superblock.inodes[i].fd=49;
+			superblock.inodes[i].type=FILE;
+			return 0;
+		}
+
+	}
+	printf("File does not exist in the system\n");
+	return -1;
 }
 

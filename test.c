@@ -30,6 +30,7 @@ int main()
 	int ret;
 	
 	
+	
 	ret = mkFS(DEV_SIZE);
 	if (ret != 0)
 	{
@@ -114,7 +115,7 @@ int main()
 	}
 
 	if(sizeof(c)==sizeof(b) && memcmp(c, b, sizeof(c))==0){
-		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile and writeFile consistency ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile and writeFile consistency  ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	}
 
 	else{
@@ -123,6 +124,201 @@ int main()
 
 	}
 
+	ret=closeFile(fd);
+
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST closeFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST closeFile", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=includeIntegrity("/test.txt");
+
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST includeIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST includeIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=openFileIntegrity("/test.txt");
+	fd=ret;
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openIntegrity (file has not been modified) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openIntegrity(file has not been modified) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	closeFileIntegrity(fd);
+	openFile("/test.txt");
+
+	char  yikes [500];
+
+	memset(yikes, 'b', sizeof(yikes));
+
+	ret=writeFile(fd, yikes, 500);
+	if(ret<0){
+		return -1;
+	}
+
+	closeFile(fd);
+	
+	ret=openFileIntegrity("/test.txt");
+	if(ret==-2){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openIntegrity (file has been modified, should be corrupted) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openIntegrity(file has not been modified, should be corrupted) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	
+	createFile("/test2.txt");
+	ret= openFileIntegrity("/test2.txt");
+	if(ret<0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFileIntegrity (must return negative, as integrity has not been included yet) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFileIntegrity (must return negative, as integrity has not been included yet)  ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+	ret=includeIntegrity("/test2.txt");
+	if(ret<0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST includeIntegrity (must return negative, as file is empty) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFileIntegrity (must return negative, as file is empty)  ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	fd=openFile("/test2.txt");
+	ret=writeFile(fd, yikes, 500);
+	if(ret<0){
+		return -1;
+	}
+	
+	closeFile(fd);
+	includeIntegrity("/test2.txt");
+	memset(yikes, 'a', sizeof(yikes));
+	fd=openFileIntegrity("/test2.txt");
+		ret=writeFile(fd, yikes, 500);
+	if(ret<0){
+		return -1;
+	}
+	ret=closeFileIntegrity(fd);
+
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST closeFileIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST closeFileIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+
+	createFile("linktest.txt");
+	ret=createLn("linktest.txt", "link");
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createLn ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createLn ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=openFile("link");
+	fd=ret;
+
+	if(ret>=0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a link ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a link ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=openFile("linktest.txt");
+	if(ret<0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a file whose link has been opened(must return negative, file is open) ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a file whose link has been opened(must return negative, file is open) ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=closeFile(fd);
+	if(ret==0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST closeFile on a file whose link has been opened", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a whose link has been opened", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+	ret=openFile("linktest.txt");
+	if(ret>=0){
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a file whose link is no longer open ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+
+	}
+
+	else{
+
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST openFile on a file whose link is no longer open ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+
+	}
+
+
+
+	//////////////////////////////////////////
 	ret = unmountFS();
 	if (ret != 0)
 	{
