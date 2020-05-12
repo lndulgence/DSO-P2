@@ -186,19 +186,29 @@ int removeFile(char *fileName)
 			int b;
 			b=superblock.inodes[i].block_numbers[0];
 			superblock.inodes[i].block_numbers[0]=255;
-			superblock.block_allocation_map[b]=0;
+			if(b<=240){
+				superblock.block_allocation_map[b]=0;
+			}
 			b=superblock.inodes[i].block_numbers[1];
 			superblock.inodes[i].block_numbers[1]=255;
-			superblock.block_allocation_map[b]=0;
+			if(b<=240){
+				superblock.block_allocation_map[b]=0;
+			}
 			b=superblock.inodes[i].block_numbers[2];
 			superblock.inodes[i].block_numbers[2]=255;
-			superblock.block_allocation_map[b]=0;
+			if(b<=240){
+				superblock.block_allocation_map[b]=0;
+			}
 			b=superblock.inodes[i].block_numbers[3];
 			superblock.inodes[i].block_numbers[3]=255;
-			superblock.block_allocation_map[b]=0;
+			if(b<=240){
+				superblock.block_allocation_map[b]=0;
+			}
 			b=superblock.inodes[i].block_numbers[4];
 			superblock.inodes[i].block_numbers[4]=255;
-			superblock.block_allocation_map[b]=0;
+			if(b<=240){
+				superblock.block_allocation_map[b]=0;
+			}
 			superblock.inodes[i].size=0;
 			superblock.inodes[i].pointer=0;
 			return 0;
