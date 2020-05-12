@@ -148,14 +148,6 @@ int main()
 	char  c [3000];
 
 	
-	ret=readFile(fd,c,3001);
-		if (ret >= 0)
-	{
-		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile with numBytes bigger than file size", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
-		return -1;
-	}
-	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST readFile with numBytes bigger than file size", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
-
 	ret=readFile(fd, c, 3000);
 	if(ret<0){
 		printf("error on read");
