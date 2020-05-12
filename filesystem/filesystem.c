@@ -26,7 +26,6 @@
 
 // definir estructuras iniciales del sistema de archivos
 struct SuperBlock superblock;
-int masterDir; // cantidad de ficheros o directorios en master
 int fileState[MAX_FILES];	// vector que define el estado (abierto o cerrado) de los ficheros
 char iNodeNames[MAX_FILES][MAX_NAME_LENGHT];	// vector con los nombres de ficheros.
 
